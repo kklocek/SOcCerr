@@ -22,7 +22,7 @@ char id[30];
 char path[50]; //ip
 char ip[30];
 int port;
-
+///TODO: POMYSLEC NAD TRYBEM VIEWERA
 pthread_t ioThread;
 pthread_t parent;
 pid_t parentPid;
@@ -31,6 +31,7 @@ struct sockaddr_in remoteAddr;
 struct sockaddr_in myAddr;
 struct message msg;
 struct message toSend;
+struct pitch myPitch;
 
 void estabilishNetConnection();
 
@@ -50,7 +51,10 @@ void prepareToGame();
 void getHighScore();
 void manual();
 void findPlayer(int type); //1 - specific, 0 - normal
-void playGame(struct clientCaller);
+void playGame(struct serverCaller);
+void registerName();
+void drawPitch();
+void drawNeighbours(struct point point);
 
 int main(int argc, char** argv)
 {
@@ -80,13 +84,14 @@ void menu()
                 manual();
                 break;
             case 0:
+                printf("Thank you, and have a nice day :).\n");
+                exit(0);
                 break;
             default:
                 printf("Wrong option, try again!\n");
                 choice = -1;
                 break;
         }
-
     } while(choice != 0);
     printf("Thank you, and have a nice day :)\n");
 
@@ -141,10 +146,10 @@ void prepareToGame()
 
 
     estabilishNetConnection();
-
+    registerName();
     int answer;
     label:
-    printf("Do you want to:\1. Find a player ? \n2. Play with specific player ? \n0. Back to main menu?\nChoose your option: ");
+    printf("Do you want to:\n1. Find a player ? \n2. Play with specific player ? \n0. Back to main menu?\nChoose your option: ");
     scanf("%d", &answer);
 
     switch(answer)
@@ -175,12 +180,24 @@ void manual()
 
 }
 
+void registerName()
+{
+    struct serverCaller call;
+    strcpy(call.id, id);
+    call.request = REGISTER;
+
+    if(send(mySocket, &call, sizeof(struct serverCaller), 0) == -1)
+    {
+        perror("SEND REGISTER ERROR.");
+        exit(1);
+    }
+
+}
 void findPlayer(int type)
 {
     struct serverCaller call;
-    struct clientCaller call2;
+    //struct clientCaller call2;
     strcpy(call.id, id);
-    call.peerSocket = mySocket;
     call.request = FIND;
     if(type)
     {
@@ -191,36 +208,64 @@ void findPlayer(int type)
         call.request = FIND_SPECIFIC;
     }
 
-    printf("Sending request...");
+
+    ///TODO: Timed response!
+
+    printf("Sending request...\n");
     if(send(mySocket, &call, sizeof(struct serverCaller),0) == -1)
     {
         perror("SEND ERROR");
         exit(1);
     }
 
-    ///TODO: Timed response!
-    if(recv(mySocket, &call2, sizeof(struct clientCaller), 0) == -1)
+    if(recv(mySocket, &call, sizeof(struct serverCaller), 0) == -1)
     {
         perror("RECV ERROR");
         exit(1);
     }
 
-    if(call2.response == ACCEPTED)
+    if(call.response == ACCEPTED)
     {
-        //est dobrze, mamy z kim grać
+        //jest dobrze, mamy z kim grać
         //GRAMY!
-        printf("Your rival: %s. Starting game...\n", call2.id2);
-        playGame(call2); //W call2 mamy zapisane id nasze i 'tego drugiego' :P
-        ///TODO: Zrobić coś jeżeli nie chcę grać z tym gościem
+        printf("Your rival: %s. Starting game...\n", call.id2);
+        playGame(call); //W call2 mamy zapisane id nasze i 'tego drugiego' :P
+        ///TODO: Zrobić coś jeżeli nie chcę grać z tym gościem?
+    }
+    else if(type)
+    {
+        //Nie udalo nam sie znalezc tego jedynego...
+        printf("Sorry, but %s is not connected. What do you want to do?\n", call.id2);
+        printf("1. Find new player\n2.Find new specific player\n3.Back to main menu.\n");
+        int c;
+        scanf("%d", &c);
+
+        switch(c)
+        {
+            case 1:
+                findPlayer(0);
+                break;
+            case 2:
+                findPlayer(1);
+                break;
+            case 3:
+                menu();
+                break;
+            default:
+                printf("Wrong option, back to menu!\n"); ///TODO: Zrobic to lepiej?
+                menu();
+        }
     }
     else
     {
-        ///TODO: Zrobić coś na wypadek gdyby serwer olał sprawę
-    }
+        printf("There are no peers which could play with you... We will try again in the moment!\n");
+        sleep(1);
 
+    }
+    //}
 }
 
-void playGame(struct clientCaller call)
+void playGame(struct serverCaller call)
 {
     //Cała logika gry
     //Narysuj boisko
@@ -229,8 +274,13 @@ void playGame(struct clientCaller call)
     ///TODO: Co przesyła serwer? Po prostu x, y, czy może też całe boisko?
     ///Kto będzie decydował o logice gry - klient czy serwer?
     ///Kto trzymał będzie boisko - klient czy serwer?
+    printf("\nWEEEEEE.\n");
 }
 
+void drawNeighbours(struct point point)
+{
+
+}
 void estabilishNetConnection()
 {
     printf("Connecting to %s:%d...\n", ip, port);
@@ -253,117 +303,27 @@ void estabilishNetConnection()
     }
     printf("CONNECTED!\n");
 
+
 }
 
-void* work(void* data)
+void drawPitch()
 {
-    int ownSocket = mySocket;
-    sigset_t set;
-    if(sigemptyset(&set) == -1)
+    int i, j;
+    for(j = 0; j < PITCH_Y_SIZE; j++)
     {
-        perror("SIGEMPTYSET ERROR");
-        exit(1);
-    }
-
-    if(sigaddset(&set, SIGUSR1) == -1)
-    {
-        perror("SIGADDSET ERROR");
-        exit(1);
-    }
-
-    if(sigaddset(&set, SIGALRM) == -1)
-    {
-        perror("SIGADDSET ERROR");
-        exit(1);
-    }
-
-    struct sigaction sigact;
-    sigact.sa_mask = set;
-    sigact.sa_flags = SA_RESTART;
-    sigact.sa_handler = daddyHandler;
-    if(sigaction(SIGUSR1, &sigact, NULL) == -1)
-    {
-        perror("SIGACTION ERROR");
-        exit(1);
-    }
-
-    if(sigaction(SIGALRM, &sigact, NULL) == -1)
-    {
-        perror("SIGACTION ERROR");
-        exit(1);
-    }
-
-    while(1)
-    {
-        label:
-        if(recv(ownSocket, &msg, sizeof(struct message), 0) == -1)
+        for(i = 0; i < PITCH_X_SIZE; i++)
         {
-            if(errno == 11)
-                goto label;
-            perror("RECV ERROR");
-            exit(1);
+            if(myPitch.points[i][j].status == NONE)
+                continue;
+            else
+                drawNeighbours(myPitch.points[i][j]);
+
         }
 
-        if(pthread_kill(ioThread, SIGUSR2) != 0)
-        {
-            fprintf(stderr, "PTHREAD KILL ERROR");
-            exit(1);
-        }
-    }
-
-}
-void* io(void* data)
-{
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGUSR2);
-
-    struct sigaction sigact;
-    sigact.sa_mask = set;
-    sigact.sa_flags = SA_RESTART;
-    sigact.sa_handler = kidHandler;
-    sigaction(SIGUSR2, &sigact, NULL);
-    while(1)
-    {
-        char buf[BUF_SIZE];
-        int i;
-        for(i = 0; i < BUF_SIZE; i++)
-            buf[i] = '\0';
-        fgets(buf, BUF_SIZE, stdin);
-
-        if(strlen(buf) == 0)
-            continue;
-
-        //toSend = packMessage(2, buf);
-        if(pthread_kill(parent, SIGUSR1) != 0)
-        {
-            fprintf(stderr, "PTHREAD KILL ERROR");
-            exit(1);
-        }
     }
 
 }
 
-
-void registerName()
-{
-
-
-}
-
-void daddyHandler(int sig)
-{
-
-    //Nie to nie, wysylamy po prostu
-    int ownSocket = mySocket;
-
-
-}
-
-void kidHandler(int sig)
-{
-    //printf("%s: %s\n", msg.name, msg.msg);
-}
 
 void cleaner()
 {
