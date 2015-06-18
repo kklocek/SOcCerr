@@ -36,15 +36,18 @@ enum serverRequest
 
 };
 
-enum pointStatus
+enum borderStatus
 {
-    NORMAL,
-    TAKEN, //Znaczy sie mozna sie odbic od niego
     BORDER_UP,
     BORDER_DOWN,
     BORDER_LEFT,
     BORDER_RIGHT,
-    NONE,
+};
+
+enum pointStatus
+{
+    NORMAL,
+    TAKEN, //Znaczy sie mozna sie odbic od niego
     GOAL
 };
 

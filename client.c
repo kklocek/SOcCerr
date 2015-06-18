@@ -31,6 +31,8 @@ struct sockaddr_in remoteAddr;
 struct sockaddr_in myAddr;
 struct pitch myPitch;
 
+int currX, currY;
+
 void estabilishNetConnection();
 void cleaner();
 
@@ -44,12 +46,13 @@ void findPlayer(int type); //1 - specific, 0 - normal
 void playGame(struct serverCaller);
 void registerName();
 void drawPitch();
-void drawNeighbours(struct point point);
 struct serverCaller move(struct serverCaller caller);
 struct serverCaller receive();
 void actualize(struct serverCaller call);
 void initPitch();
 void sender(struct serverCaller call);
+int canILeave(struct point p);
+void fill(int i, int j, int val, int status);
 
 /**
     main - main jak main.
@@ -307,6 +310,10 @@ void playGame(struct serverCaller call)
 {
     //Cała logika gry
     initPitch();
+    currX = call.msg.x;
+    currY = call.msg.y;
+    printf("Pitch initialized!\n");
+    //drawPitch();
     do
     {
         while((iAmFirst && !call.msg.idOneTurn) || (!iAmFirst && call.msg.idOneTurn))
@@ -314,20 +321,15 @@ void playGame(struct serverCaller call)
         printf("Received. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
         drawPitch();
         if(call.msg.status != ENDED)
+        {
             call = move(call);
-        sender(call);
-        printf("Sended. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
+            sender(call);
+            printf("Sended. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
+        }
+
     } while(call.msg.status != ENDED);
     ///TODO: Ładne zakończenie :P
     printf("\nIt was a good game, thank you :).\n");
-}
-
-/**
-    ???
-*/
-void drawNeighbours(struct point point)
-{
-
 }
 
 /**
@@ -335,18 +337,69 @@ void drawNeighbours(struct point point)
 */
 void drawPitch()
 {
-    int i, j;
-    for(j = 0; j < PITCH_Y_SIZE; j++)
+    int i, j, row;
+    for(j = 0; j < PITCH_Y_SIZE + 2; j++)
     {
-        for(i = 0; i < PITCH_X_SIZE; i++)
+        //Rysujemy linie boiska, teraz trzeba narysowac wiersze
+        for(row = 0; row < 3; row++)
         {
-            if(myPitch.points[i][j].status == NONE)
-                continue;
-            else
-                drawNeighbours(myPitch.points[i][j]);
+            for(i = 0; i < PITCH_X_SIZE; i++)
+            {
+                //Matko, jakie to glupie...
+                if(row == 0)
+                {
+                    if(myPitch.points[i][j].neighbours[1])
+                        printf("\\");
+                    else
+                        printf(" ");
+
+                    if(myPitch.points[i][j].neighbours[2])
+                        printf("|");
+                    else
+                        printf(" ");
+
+                    if(myPitch.points[i][j].neighbours[3])
+                        printf("/");
+                    else
+                        printf(" ");
+                }
+                else if(row == 1)
+                {
+                    if(myPitch.points[i][j].neighbours[0])
+                        printf("-");
+                    else
+                        printf(" ");
+
+                    printf(" ");
+
+                    if(myPitch.points[i][j].neighbours[4])
+                        printf("-");
+                    else
+                        printf(" ");
+                }
+                else
+                {
+                    if(myPitch.points[i][j].neighbours[7])
+                        printf("/");
+                    else
+                        printf(" ");
+
+                    if(myPitch.points[i][j].neighbours[6])
+                        printf("|");
+                    else
+                        printf(" ");
+
+                    if(myPitch.points[i][j].neighbours[5])
+                        printf("\\");
+                    else
+                        printf(" ");
+
+
+                }
+            }
+            printf("\n");
 
         }
-
     }
 
 }
@@ -357,6 +410,8 @@ void drawPitch()
 struct serverCaller move(struct serverCaller caller)
 {
     //Tu jeszcze jakas petla
+
+    ///TODO: ZROBIC TAK ZEBY NIE MOZNA BYLO STRZELIC SAMOBOJCZEGO STRZALU
     while(1)
     {
         short c = 0;
@@ -368,8 +423,8 @@ struct serverCaller move(struct serverCaller caller)
                 printf("Wrong option, try again!\n");
         }
 
-        int cX = caller.msg.x; //c - current
-        int cY = caller.msg.y; //serverCaller przechowuje ostatnie x i y wprowadzone, to juz wystarczy
+        //int cX = caller.msg.x; //c - current
+        //int cY = caller.msg.y; //serverCaller przechowuje ostatnie x i y wprowadzone, to juz wystarczy
 
         //Tablica opisujaca nam jak sie zmienia x i y - indeksem bedzie nasz wybor
         c--; //Dla latwej indeksacji
@@ -377,27 +432,38 @@ struct serverCaller move(struct serverCaller caller)
         int choiceY[] = {0, 1, 1, 1, 0, -1, -1, -1};
         int dx = choiceX[c];
         int dy = choiceY[c];
-
+        printf("dx = %d, dy = %d.\n",  dx, dy);
         //Sprawdzamy czy mozemy tam wejsc
-        if(myPitch.points[cX][cY].neighbours[c] == 0)
+        if(myPitch.points[currX][currY].neighbours[c] == 0)
         {
             //Z BUTA WJEZDAM TAM!
-            myPitch.points[cX][cY].neighbours[c]= myPitch.points[cX + dx][cY + dy].neighbours[(c + 4) % 8] = 1;
-
-            //Ok, weszlismy na puste pole, mozemy to przeslac dalej
-            if(myPitch.points[cX + dx][cY + dy].status == NORMAL)
+            if(canILeave(myPitch.points[currX + dx][currY + dy]))
+                myPitch.points[currX][currY].neighbours[c]= myPitch.points[currX + dx][currY + dy].neighbours[(c + 4) % 8] = 1;
+            else
             {
-                myPitch.points[cX + dx][cY + dy].status = TAKEN;
-                caller.msg.x = cX;
-                caller.msg.y = cY;
-                caller.msg.idOneTurn = !caller.msg.idOneTurn;
-                caller.request = TURN;
-                return caller;
+                printf("You can't move here, try again!.\n");
+                continue;
             }
 
-            //TO TERAZ ODBIJANIE, HEHE
-            //TRZEBA POSPRAWDZAC TE STATUSY
-            //Z UWZGLEDNIENIEM SCIAN
+            if(myPitch.points[currX + dx][currY + dy].status == NORMAL)
+            {
+                myPitch.points[currX + dx][currY + dy].status = TAKEN;
+                caller.msg.idOneTurn = !caller.msg.idOneTurn;
+            }
+            else if(myPitch.points[currX + dx][currY + dy].status == GOAL)
+            {
+                //WYGRANA!!!!!!!!
+                caller.msg.status = ENDED;
+            }
+
+            caller.request = TURN;
+            caller.msg.x = currX + dx;
+            caller.msg.y = currY + dy;
+            currX = caller.msg.x;
+            currY = caller.msg.y;
+            //Pomocniczo
+            drawPitch();
+            return caller;
         }
         else
         {
@@ -405,6 +471,58 @@ struct serverCaller move(struct serverCaller caller)
             continue;
         }
     }
+}
+
+/**
+    canILeave - czy jak wejde do danego pola to bede mogl wyjsc
+*/
+int canILeave(struct point p)
+{
+    //8 pol w tablicy, jak bedzie tylko jedno to nie mozemy stamtad wyjsc
+    int i, cnt = 0;
+    for(i = 0; i < 8; i++)
+    {
+        if(p.neighbours[i] == 0)
+            cnt++;
+    }
+
+    return cnt > 1;
+}
+
+/**
+    fill - wypelniamy sasiadow punktu, gdy nasz punkt ma specjalny status (jest granica np.)
+*/
+void fill(int i, int j, int val, int status)
+{
+    //printf("In fill.\n");
+    int start = 0;
+
+    switch(status)
+    {
+        case BORDER_UP:
+            break;
+        case BORDER_DOWN:
+            start = 4;
+            break;
+        case BORDER_LEFT:
+            start = 6;
+            break;
+        case BORDER_RIGHT:
+            start = 2;
+            break;
+        default:
+            break;
+    }
+
+    /*
+        Dlaczego start + 5? Wyobraz sobie punkt ktory jest gorna granica - musi on miec tylko odblokowane u dolu, wiec
+        trzeba zablokowac gorne:
+        \|/
+        -P-
+    */
+    int p;
+    for(p = start; p < start + 5; p++)
+        myPitch.points[i][j].neighbours[p % 8] = val;
 }
 
 /**
@@ -440,6 +558,19 @@ void sender(struct serverCaller call)
 void actualize(struct serverCaller call)
 {
     myPitch.points[call.msg.x][call.msg.y].status = TAKEN;
+    int dx = call.msg.x - currX + 1;
+    int dy = call.msg.y - currY + 1; //Mamy zakres [0,2]
+
+    //Tu jest blad :P
+    int moves[3][3] = {{7, 0, 1},
+                       {6, 0, 2},
+                       {5, 4, 3}};
+
+    int move = moves[dx][dy];
+
+    myPitch.points[currX][currY].neighbours[move] = myPitch.points[call.msg.x][call.msg.y].neighbours[(move + 4) % 8] = 1;
+    currX = call.msg.x;
+    currY = call.msg.y;
 }
 
 /**
@@ -449,44 +580,62 @@ void initPitch()
 {
     //Najpierw X, potem Y
     //Najpierw puste miejsca i linie poziome
-    int i, j;
+    //printf("In initpitch.\n");
+    int i, j, k;
+    //Czyszczenie naszych tablic w razie czego
+    for(i = 0; i < PITCH_X_SIZE; i++)
+    {
+        for(j = 0; j < PITCH_Y_SIZE; j++)
+        {
+            myPitch.points[i][j].status = NORMAL;
+            for(k = 0; k < 8; k++)
+                myPitch.points[i][j].neighbours[k] = 0;
+        }
+    }
+
     for(j = 0; j < PITCH_X_SIZE; j++)
     {
+        //printf("In initpitch, x = %d.\n", j);
         myPitch.points[j][0].status = myPitch.points[j][PITCH_Y_SIZE + 1].status = NORMAL;
-        myPitch.points[j][1].status = BORDER_UP;
-        myPitch.points[j][PITCH_Y_SIZE].status = BORDER_DOWN;
-        myPitch.points[j][1].neighbours[0] = myPitch.points[j][1].neighbours[4] =
-            myPitch.points[j][PITCH_Y_SIZE].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE].neighbours[4] = 1;
+        myPitch.points[j][1].status = TAKEN;
+        myPitch.points[j][PITCH_Y_SIZE].status = TAKEN;
+        fill(j, 1, 1, BORDER_UP);
+        fill(j, PITCH_Y_SIZE, 1, BORDER_DOWN);
     }
 
     //Uff, teraz linie pionowe
     for(i = 0; i < PITCH_Y_SIZE; i++)
     {
-        myPitch.points[0][i].status = BORDER_LEFT;
-        myPitch.points[PITCH_X_SIZE - 1][i].status = BORDER_RIGHT; ///TODO: Kiedys to trzeba poprawic moze, coby sie nie wstydzic przed dziecmi
-        myPitch.points[0][i].neighbours[2] = myPitch.points[0][i].neighbours[6] =
-            myPitch.points[PITCH_X_SIZE - 1][i].neighbours[2] = myPitch.points[PITCH_X_SIZE - 1][i].neighbours[6] = 1;
+        //printf("In initpitch, y = %d.\n", i);
+        myPitch.points[0][i].status = TAKEN;
+        myPitch.points[PITCH_X_SIZE - 1][i].status = TAKEN;
+        fill(0,i, 1, BORDER_LEFT);
+        fill(PITCH_X_SIZE - 1, i, 1, BORDER_RIGHT);
     }
 
     //Teraz linia srodkowa
     for(j = 0; j < PITCH_X_SIZE; j++)
     {
+        //printf("In initpitch, center, x = %d.\n", j);
         myPitch.points[j][PITCH_Y_SIZE / 2 - 1].status = TAKEN;
-        myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[2] = myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[6] = 1;
+        myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[4] = 1;
     }
 
     //No i kochane bramki <3
     int startPos = PITCH_X_SIZE / 2 - GOAL_WIDTH / 2;
     for(j = startPos; j < startPos + GOAL_WIDTH; j++)
     {
+        //printf("In initpitch, goals, y = %d.\n", j);
         myPitch.points[j][0].status = myPitch.points[j][PITCH_Y_SIZE + 1].status = GOAL;
         //Jeszcze trzeba wstawic wolne miejsca, bo teraz nie da sie dojsc do tej bramki :P
         /*
              |--|
         --------------
         */
-        myPitch.points[j][1].neighbours[0] = myPitch.points[j][1].neighbours[4] =
-            myPitch.points[j][PITCH_Y_SIZE].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE].neighbours[4] = 0;
+        //myPitch.points[j][1].neighbours[0] = myPitch.points[j][1].neighbours[4] =
+         //   myPitch.points[j][PITCH_Y_SIZE].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE].neighbours[4] = 0;
+        fill(j, 1, 0, BORDER_UP);
+        fill(j, PITCH_Y_SIZE, 0, BORDER_DOWN);
 
     }
     //No i na koniec oczywiscie - naprawic sasiadów - brakuje nam po jednym z kazdej strony
@@ -494,7 +643,7 @@ void initPitch()
              |--|
         -----    -----
     */
-    myPitch.points[j][1].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE].neighbours[4] = 1;
+    myPitch.points[startPos][1].neighbours[0] = myPitch.points[startPos + GOAL_WIDTH][PITCH_Y_SIZE].neighbours[4] = 1;
     //Ostatecznie - dziala!
 }
 
