@@ -3,6 +3,7 @@
 
 #define PITCH_X_SIZE 8
 #define PITCH_Y_SIZE 10
+#define GOAL_WIDTH 2
 ///TODO: Tak samo dla bramki, ale najpierwsz muszę wiedzieć jak jest bramka po angielsku...
 enum gameStatus
 {
@@ -13,6 +14,7 @@ enum gameStatus
     PLAYER_TWO_SURRENDING,
     DRAW_REQUEST,
     DRAW,
+    ENDED,
     DISCONNECTED
 };
 
@@ -29,16 +31,21 @@ enum serverRequest
     FIND_SPECIFIC,
     FIND,
     FOUNDED, //?
-    HIGH_SCORE
+    HIGH_SCORE,
+    TURN
 
 };
 
 enum pointStatus
 {
     NORMAL,
-    TAKEN,
+    TAKEN, //Znaczy sie mozna sie odbic od niego
+    BORDER_UP,
+    BORDER_DOWN,
+    BORDER_LEFT,
+    BORDER_RIGHT,
     NONE,
-    GOAL ///TODO: Poprawic bo mnie razi w oczy
+    GOAL
 };
 
 enum serverResponse
@@ -51,6 +58,7 @@ struct message
 {
     int x, y;
     int idOneTurn; //Czy id1 ma teraz ture
+    int sock1, sock2; //Nr socketow, aby nie szukac niepotrzebnie w tablicy
     enum gameStatus status;
 };
 
@@ -76,6 +84,11 @@ struct point
 {
     enum pointStatus status;
     int neighbours[8];
+    /*
+    1 2 3
+    0 x 4
+    7 6 5
+    */
 };
 
 struct pitch

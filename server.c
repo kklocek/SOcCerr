@@ -28,11 +28,11 @@ void work();
 void check();
 void handleRequest(int i, struct serverCaller caller);
 void registerPeer(int i, struct serverCaller caller);
-void handleNewConnection(int s);
 void findPeer(int sock, struct serverCaller caller, int isSpecific);
 void sendResponse(int first, int second, int status);
 int findIndex(struct serverCaller caller);
 void closePeer(int i);
+void nextTurn(int i, struct serverCaller caller);
 
 int main(int argc, char** argv)
 {
@@ -126,8 +126,7 @@ void work()
                         if(newfd > max)
                             max = newfd;
 
-                        printf("New connection by net: %d.\n", i);
-                        handleNewConnection(newfd);
+                        printf("New connection by net: %d.\n", newfd);
                     }
                 }
                 else
@@ -161,12 +160,8 @@ void handleRequest(int i, struct serverCaller caller)
         findPeer(i, caller, 1);
     else if(caller.request == REGISTER)
         registerPeer(i, caller);
-}
-
-void handleNewConnection(int s)
-{
-
-
+    else if(caller.request == TURN)
+        nextTurn(i, caller);
 }
 
 int findIndex(struct serverCaller caller)
@@ -191,7 +186,7 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
     for(j = 0; j < idx; j++)
     {
         //printf("j = %d\nStatus: %d", j, info[j].status);
-        if(info[j].status == WAITING && (strcmp(info[j].id, info[myIdx].id) != 0))
+        if(info[j].sock != -1 && info[j].status == WAITING && (strcmp(info[j].id, info[myIdx].id) != 0))
         {
             //printf("In if: info[j] = %s\n", info[j].id);
             //printf("Specific: %d\ncaller.id: %s\n", isSpecific, info[myIdx].id);
@@ -206,16 +201,18 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
                 caller.msg.idOneTurn = 1;
                 caller.msg.x = PITCH_X_SIZE / 2;
                 caller.msg.y = PITCH_Y_SIZE / 2;
+                caller.msg.sock1 = sock;
+                caller.msg.sock2 = info[j].sock;
                 caller.response = ACCEPTED;
                 //sendResponse(caller.peerSocket, info[j].status, ACCEPTED);
                 //printf("FOUND!\n");
-                if(send(sock, &caller, sizeof(struct clientCaller), 0) == -1)
+                if(send(sock, &caller, sizeof(struct serverCaller), 0) == -1)
                 {
                     perror("SEND RESPONSE FIND PEER ERROR");
                     exit(1);
                 }
 
-                if(send(info[j].sock, &caller, sizeof(struct clientCaller), 0) == -1)
+                if(send(info[j].sock, &caller, sizeof(struct serverCaller), 0) == -1)
                 {
                     perror("SEND RESPONSE FIND PEER ERROR");
                     exit(1);
@@ -236,7 +233,8 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
     {
         printf("%s couldn't find specific player.\n", caller.id2);
         caller.response = NOTACCEPTED;
-        if(send(sock, &caller, sizeof(struct clientCaller), 0) == -1)
+        printf("Sending notaccepted: %d\n", caller.response);
+        if(send(sock, &caller, sizeof(struct serverCaller), 0) == -1)
         {
             perror("SEND RESPONSE FIND PEER ERROR");
             exit(1);
@@ -272,6 +270,30 @@ void registerPeer(int i, struct serverCaller caller)
     info[idx].status = BEING;
     idx++;
 
+}
+
+void nextTurn(int i, struct serverCaller caller)
+{
+    printf("Next turn. Id1 = %s, Id2 = %s\n", caller.id, caller.id2);
+    int iAmFirst = (i == caller.msg.sock1) ? 1 : 0;
+        printf("iAmFirst =  %d\n", iAmFirst);
+    if(iAmFirst)
+    {
+        if(send(caller.msg.sock2, &caller, sizeof(struct serverCaller), 0) == -1)
+        {
+            perror("SEND ERROR NEXT TURN");
+            exit(1);
+        }
+    }
+    else
+    {
+        if(send(caller.msg.sock1, &caller, sizeof(struct serverCaller), 0) == -1)
+        {
+            perror("SEND ERROR NEXT TURN");
+            exit(1);
+        }
+
+    }
 }
 
 void closePeer(int i)
