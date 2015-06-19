@@ -200,7 +200,7 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
                 strcpy(caller.id2, info[j].id);
                 caller.msg.idOneTurn = 1;
                 caller.msg.x = PITCH_X_SIZE / 2;
-                caller.msg.y = PITCH_Y_SIZE / 2;
+                caller.msg.y = PITCH_Y_SIZE / 2 - 1;
                 caller.msg.sock1 = sock;
                 caller.msg.sock2 = info[j].sock;
                 caller.response = ACCEPTED;

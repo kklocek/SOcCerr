@@ -1,9 +1,11 @@
-#define MSG_LEN 180
-#define TIMEOUT 30
-#define DTIME 5
-#define BUF_SIZE 180
+#define clear() printf("\033[H\033[J")
 
 #include <stdio.h>
+/**
+  TODO: Zmienic sterowanie - popatrz na numpad!
+
+*/
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -22,6 +24,7 @@ char id[30];
 char ip[30];
 int port;
 ///TODO: POMYSLEC NAD TRYBEM VIEWERA
+
 pthread_t ioThread;
 pthread_t parent;
 pid_t parentPid;
@@ -53,6 +56,7 @@ void initPitch();
 void sender(struct serverCaller call);
 int canILeave(struct point p);
 void fill(int i, int j, int val, int status);
+void printPointStatus(struct point p);
 
 /**
     main - main jak main.
@@ -337,6 +341,7 @@ void playGame(struct serverCaller call)
 */
 void drawPitch()
 {
+    //clear();
     int i, j, row;
     for(j = 0; j < PITCH_Y_SIZE + 2; j++)
     {
@@ -393,8 +398,6 @@ void drawPitch()
                         printf("\\");
                     else
                         printf(" ");
-
-
                 }
             }
             printf("\n");
@@ -423,13 +426,10 @@ struct serverCaller move(struct serverCaller caller)
                 printf("Wrong option, try again!\n");
         }
 
-        //int cX = caller.msg.x; //c - current
-        //int cY = caller.msg.y; //serverCaller przechowuje ostatnie x i y wprowadzone, to juz wystarczy
-
         //Tablica opisujaca nam jak sie zmienia x i y - indeksem bedzie nasz wybor
         c--; //Dla latwej indeksacji
         int choiceX[] = {-1, -1, 0, 1, 1, 1, 0, -1};
-        int choiceY[] = {0, 1, 1, 1, 0, -1, -1, -1};
+        int choiceY[] = {0, -1, -1, -1, 0, 1, 1, 1};
         int dx = choiceX[c];
         int dy = choiceY[c];
         printf("dx = %d, dy = %d.\n",  dx, dy);
@@ -437,6 +437,10 @@ struct serverCaller move(struct serverCaller caller)
         if(myPitch.points[currX][currY].neighbours[c] == 0)
         {
             //Z BUTA WJEZDAM TAM!
+            myPitch.points[currX][currY].status = TAKEN;
+            printf("POINTS STATUS: \n");
+            printPointStatus(myPitch.points[currX][currY]);
+            printPointStatus(myPitch.points[currX + dx][currY + dy]);
             if(canILeave(myPitch.points[currX + dx][currY + dy]))
                 myPitch.points[currX][currY].neighbours[c]= myPitch.points[currX + dx][currY + dy].neighbours[(c + 4) % 8] = 1;
             else
@@ -444,7 +448,9 @@ struct serverCaller move(struct serverCaller caller)
                 printf("You can't move here, try again!.\n");
                 continue;
             }
-
+            printf("AFTER ALL:\n");
+            printPointStatus(myPitch.points[currX][currY]);
+            printPointStatus(myPitch.points[currX + dx][currY + dy]);
             if(myPitch.points[currX + dx][currY + dy].status == NORMAL)
             {
                 myPitch.points[currX + dx][currY + dy].status = TAKEN;
@@ -560,11 +566,10 @@ void actualize(struct serverCaller call)
     myPitch.points[call.msg.x][call.msg.y].status = TAKEN;
     int dx = call.msg.x - currX + 1;
     int dy = call.msg.y - currY + 1; //Mamy zakres [0,2]
-
-    //Tu jest blad :P
-    int moves[3][3] = {{7, 0, 1},
-                       {6, 0, 2},
-                       {5, 4, 3}};
+    //dx, dy
+    int moves[3][3] = {{1, 0, 7},
+                       {2, 0, 6},
+                       {3, 4, 5}};
 
     int move = moves[dx][dy];
 
@@ -685,6 +690,20 @@ void cleaner()
     {
     perror("CLOSE NET SOCKET ERROR.");
     exit(1);
+    }
+
+}
+
+void printPointStatus(struct point p)
+{
+    int i;
+    for(i = 0; i < 8; i++)
+    {
+        printf("%d = ", i);
+        if(p.neighbours[i])
+            printf("1\n");
+        else
+            printf("0\n");
     }
 
 }
