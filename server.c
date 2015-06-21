@@ -16,7 +16,7 @@
 #include <time.h>
 
 #include "header.h"
-char port[50];
+char portS[50];
 char path[50];
 int mySocket;
 struct playerInfo info[CLIENTS];
@@ -42,7 +42,7 @@ int main(int argc, char** argv)
         exit(0);
     }
 
-    strcpy(port, argv[1]);
+    strcpy(portS, argv[1]);
     int i;
     for(i = 0; i < CLIENTS; i++)
     {
@@ -65,7 +65,7 @@ void setup()
     struct sockaddr_in my_addr;
 
     my_addr.sin_family = AF_INET; //Host byte order
-    my_addr.sin_port = htons(atoi(port)); //network byt order
+    my_addr.sin_port = htons(atoi(portS)); //network byt order
     my_addr.sin_addr.s_addr = htonl(INADDR_ANY); //Moje ip
     //Niezbedne zerowanie
     memset(&(my_addr.sin_zero), '\0', 8);
