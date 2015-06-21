@@ -204,6 +204,7 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
                 caller.msg.sock1 = sock;
                 caller.msg.sock2 = info[j].sock;
                 caller.response = ACCEPTED;
+                caller.msg.isEnded = 0;
                 //sendResponse(caller.peerSocket, info[j].status, ACCEPTED);
                 //printf("FOUND!\n");
                 if(send(sock, &caller, sizeof(struct serverCaller), 0) == -1)

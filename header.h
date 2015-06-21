@@ -4,7 +4,7 @@
 #define PITCH_X_SIZE 8
 #define PITCH_Y_SIZE 10
 #define GOAL_WIDTH 2
-///TODO: Tak samo dla bramki, ale najpierwsz muszę wiedzieć jak jest bramka po angielsku...
+
 enum gameStatus
 {
     GAME_PLAYING,
@@ -62,6 +62,7 @@ struct message
     int x, y;
     int idOneTurn; //Czy id1 ma teraz ture
     int sock1, sock2; //Nr socketow, aby nie szukac niepotrzebnie w tablicy
+    int isEnded;
     enum gameStatus status;
 };
 
@@ -87,6 +88,7 @@ struct point
 {
     enum pointStatus status;
     int neighbours[8];
+    int isItBall;
     /*
     1 2 3
     0 x 4
@@ -106,17 +108,4 @@ struct playerInfo
     enum playerStatus status;
 
 };
-///TODO: Ogarnac ponizsze
-struct peerInfo
-{
-    char name[30];
-    long timer;
-    struct sockaddr addr;
-    struct sockaddr_in addrIn;
-    struct sockaddr_un addrUn;
-    unsigned int peerSocket;
-    unsigned int type;
-};
-
-
 #endif // HEADER_H_INCLUDED

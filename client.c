@@ -18,6 +18,8 @@
 #include <sys/un.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "header.h"
 char id[30];
@@ -200,8 +202,28 @@ void getHighScore()
 */
 void manual()
 {
+    clear();
+    FILE* fd;
+    fd = fopen("README.md", "r");
+    if(fd == NULL)
+    {
+        perror("FOPEN ERROR IN MANUAL");
+        exit(1);
+    }
 
+    char buf[100];
 
+    while(fgets(buf, 100, fd)!= NULL)
+    {
+        //fread(buf, 1, 100, fd); //BŁĄD!
+        printf("%s", buf);
+    }
+
+    if(fclose(fd) == -1)
+    {
+        perror("FCLOSE ERROR IN MANUAL");
+        exit(1);
+    }
 }
 
 /**
@@ -259,17 +281,17 @@ void findPlayer(int type)
     {
         //jest dobrze, mamy z kim grać
         //GRAMY!
-        printf("Id1 = %s, id2 = %s, myId = %s.\n", call.id, call.id2, id);
+        //printf("Id1 = %s, id2 = %s, myId = %s.\n", call.id, call.id2, id);
         if(strcmp(id, call.id) == 0)
             iAmFirst = 1;
         else
             iAmFirst = 0;
-        printf("iAmFirst: %d\n", iAmFirst);
+        //printf("iAmFirst: %d\n", iAmFirst);
 
         if(iAmFirst)
-            printf("Your rival: %s. Starting game...\n", call.id2);
+            printf("Your rival: %s. You are first. Starting game...\n", call.id2);
         else
-            printf("Your rival: %s. Starting game...\n", call.id);
+            printf("Your rival: %s. You are second. Starting game...\n", call.id);
 
         playGame(call); //W call2 mamy zapisane id nasze i 'tego drugiego' :P
         ///TODO: Zrobić coś jeżeli nie chcę grać z tym gościem?
@@ -322,17 +344,36 @@ void playGame(struct serverCaller call)
     {
         while((iAmFirst && !call.msg.idOneTurn) || (!iAmFirst && call.msg.idOneTurn))
             call = receive();
-        printf("Received. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
+        //printf("Received. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
+        ///TODO: Angielski sprawdzic
         drawPitch();
-        if(call.msg.status != ENDED)
+        if(iAmFirst)
+            printf("Remember that you need to score a goal on upper field!\n");
+        else
+            printf("Remember that you need to score a goal on down field!\n");
+        if(!call.msg.isEnded)
         {
             call = move(call);
             sender(call);
-            printf("Sended. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
+            //printf("Sended. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
         }
 
-    } while(call.msg.status != ENDED);
+    } while(!call.msg.isEnded);
     ///TODO: Ładne zakończenie :P
+    ///TODO: Brakuje opcji remisu i poddania się!
+    clear();
+    switch(call.msg.status)
+    {
+        case PLAYER_ONE_WINS:
+            printf("\nPlayer %s won!\n", call.id);
+            break;
+        case PLAYER_TWO_WINS:
+            printf("\nPlayer %s won!\n", call.id2);
+            break;
+        default:
+            printf("Huh...\n");
+
+    }
     printf("\nIt was a good game, thank you :).\n");
 }
 
@@ -375,7 +416,10 @@ void drawPitch()
                     else
                         printf(" ");
 
-                    printf(" ");
+                    if(myPitch.points[i][j].isItBall)
+                        printf("o");
+                    else
+                        printf(" ");
 
                     if(myPitch.points[i][j].neighbours[4])
                         printf("-");
@@ -412,7 +456,6 @@ void drawPitch()
 */
 struct serverCaller move(struct serverCaller caller)
 {
-    //Tu jeszcze jakas petla
 
     ///TODO: ZROBIC TAK ZEBY NIE MOZNA BYLO STRZELIC SAMOBOJCZEGO STRZALU
     while(1)
@@ -432,15 +475,14 @@ struct serverCaller move(struct serverCaller caller)
         int choiceY[] = {0, -1, -1, -1, 0, 1, 1, 1};
         int dx = choiceX[c];
         int dy = choiceY[c];
-        printf("dx = %d, dy = %d.\n",  dx, dy);
+        //printf("dx = %d, dy = %d.\n",  dx, dy);
         //Sprawdzamy czy mozemy tam wejsc
         if(myPitch.points[currX][currY].neighbours[c] == 0)
         {
-            //Z BUTA WJEZDAM TAM!
             myPitch.points[currX][currY].status = TAKEN;
-            printf("POINTS STATUS: \n");
-            printPointStatus(myPitch.points[currX][currY]);
-            printPointStatus(myPitch.points[currX + dx][currY + dy]);
+            //printf("POINTS STATUS: \n");
+            //printPointStatus(myPitch.points[currX][currY]);
+            //printPointStatus(myPitch.points[currX + dx][currY + dy]);
             if(canILeave(myPitch.points[currX + dx][currY + dy]))
                 myPitch.points[currX][currY].neighbours[c]= myPitch.points[currX + dx][currY + dy].neighbours[(c + 4) % 8] = 1;
             else
@@ -448,9 +490,9 @@ struct serverCaller move(struct serverCaller caller)
                 printf("You can't move here, try again!.\n");
                 continue;
             }
-            printf("AFTER ALL:\n");
-            printPointStatus(myPitch.points[currX][currY]);
-            printPointStatus(myPitch.points[currX + dx][currY + dy]);
+            //printf("AFTER ALL:\n");
+            //printPointStatus(myPitch.points[currX][currY]);
+            //printPointStatus(myPitch.points[currX + dx][currY + dy]);
             if(myPitch.points[currX + dx][currY + dy].status == NORMAL)
             {
                 myPitch.points[currX + dx][currY + dy].status = TAKEN;
@@ -458,17 +500,23 @@ struct serverCaller move(struct serverCaller caller)
             }
             else if(myPitch.points[currX + dx][currY + dy].status == GOAL)
             {
-                //WYGRANA!!!!!!!!
-                caller.msg.status = ENDED;
+                if(iAmFirst && currY + dy == 0)
+                    caller.msg.status = PLAYER_ONE_WINS;
+                else
+                    caller.msg.status = PLAYER_TWO_WINS;
+                caller.msg.isEnded = 1;
+                caller.msg.idOneTurn = !caller.msg.idOneTurn;
             }
-
+            //Jeszcze pileczka
+            myPitch.points[currX ][currY].isItBall = 0;
+            myPitch.points[currX + dx][currY + dy].isItBall = 1;
             caller.request = TURN;
             caller.msg.x = currX + dx;
             caller.msg.y = currY + dy;
             currX = caller.msg.x;
             currY = caller.msg.y;
             //Pomocniczo
-            drawPitch();
+            //drawPitch();
             return caller;
         }
         else
@@ -500,7 +548,6 @@ int canILeave(struct point p)
 */
 void fill(int i, int j, int val, int status)
 {
-    //printf("In fill.\n");
     int start = 0;
 
     switch(status)
@@ -537,12 +584,14 @@ void fill(int i, int j, int val, int status)
 struct serverCaller receive()
 {
     struct serverCaller call;
+    printf("Waiting for response...\n");
     if(recv(mySocket, &call, sizeof(struct serverCaller), 0) == -1)
     {
         perror("RECV IN GAME ERROR");
         exit(1);
     }
     actualize(call);
+    drawPitch();
     return call;
 }
 
@@ -564,6 +613,8 @@ void sender(struct serverCaller call)
 void actualize(struct serverCaller call)
 {
     myPitch.points[call.msg.x][call.msg.y].status = TAKEN;
+    myPitch.points[currX][currY].isItBall = 0;
+    myPitch.points[call.msg.x][call.msg.y].isItBall = 1;
     int dx = call.msg.x - currX + 1;
     int dy = call.msg.y - currY + 1; //Mamy zakres [0,2]
     //dx, dy
@@ -594,7 +645,10 @@ void initPitch()
         {
             myPitch.points[i][j].status = NORMAL;
             for(k = 0; k < 8; k++)
+            {
                 myPitch.points[i][j].neighbours[k] = 0;
+                myPitch.points[i][j].isItBall = 0;
+            }
         }
     }
 
@@ -611,7 +665,6 @@ void initPitch()
     //Uff, teraz linie pionowe
     for(i = 0; i < PITCH_Y_SIZE; i++)
     {
-        //printf("In initpitch, y = %d.\n", i);
         myPitch.points[0][i].status = TAKEN;
         myPitch.points[PITCH_X_SIZE - 1][i].status = TAKEN;
         fill(0,i, 1, BORDER_LEFT);
@@ -621,24 +674,22 @@ void initPitch()
     //Teraz linia srodkowa
     for(j = 0; j < PITCH_X_SIZE; j++)
     {
-        //printf("In initpitch, center, x = %d.\n", j);
         myPitch.points[j][PITCH_Y_SIZE / 2 - 1].status = TAKEN;
         myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[4] = 1;
     }
 
+    //Pileczka
+    myPitch.points[PITCH_X_SIZE / 2][PITCH_Y_SIZE / 2 - 1].isItBall = 1;
     //No i kochane bramki <3
     int startPos = PITCH_X_SIZE / 2 - GOAL_WIDTH / 2;
     for(j = startPos; j < startPos + GOAL_WIDTH; j++)
     {
-        //printf("In initpitch, goals, y = %d.\n", j);
         myPitch.points[j][0].status = myPitch.points[j][PITCH_Y_SIZE + 1].status = GOAL;
         //Jeszcze trzeba wstawic wolne miejsca, bo teraz nie da sie dojsc do tej bramki :P
         /*
              |--|
         --------------
         */
-        //myPitch.points[j][1].neighbours[0] = myPitch.points[j][1].neighbours[4] =
-         //   myPitch.points[j][PITCH_Y_SIZE].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE].neighbours[4] = 0;
         fill(j, 1, 0, BORDER_UP);
         fill(j, PITCH_Y_SIZE, 0, BORDER_DOWN);
 
@@ -657,6 +708,7 @@ void initPitch()
 */
 void estabilishNetConnection()
 {
+    ///TODO: Obsluga zlych parametrow
     printf("Connecting to %s:%d...\n", ip, port);
     remoteAddr.sin_family = AF_INET;
     remoteAddr.sin_port = htons(port);
