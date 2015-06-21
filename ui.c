@@ -1,7 +1,5 @@
 #include "header.h"
 
-//extern struct pitch myPitch;
-//extern int currX, currY, iAmFirst, mySocket;
 /**
     fill - wypelniamy sasiadow punktu, gdy nasz punkt ma specjalny status (jest granica np.)
 */
@@ -27,7 +25,7 @@ void fill(int i, int j, int val, int status)
     }
 
     /*
-        Dlaczego start + 5? Wyobraz sobie punkt ktory jest gorna granica - musi on miec tylko odblokowane u dolu, wiec
+        Dlaczego start + 5? Wyobrazmy sobie punkt ktory jest gorna granica - musi on miec tylko odblokowane u dolu, wiec
         trzeba zablokowac gorne:
         \|/
         -P-
@@ -43,7 +41,6 @@ void initPitch()
 {
     //Najpierw X, potem Y
     //Najpierw puste miejsca i linie poziome
-    //printf("In initpitch.\n");
     int i, j, k;
     //Czyszczenie naszych tablic w razie czego
     for(i = 0; i < PITCH_X_SIZE; i++)
@@ -61,7 +58,6 @@ void initPitch()
 
     for(j = 0; j < PITCH_X_SIZE; j++)
     {
-        //printf("In initpitch, x = %d.\n", j);
         myPitch.points[j][0].status = myPitch.points[j][PITCH_Y_SIZE + 1].status = NORMAL;
         myPitch.points[j][1].status = TAKEN;
         myPitch.points[j][PITCH_Y_SIZE].status = TAKEN;
@@ -69,7 +65,7 @@ void initPitch()
         fill(j, PITCH_Y_SIZE, 1, BORDER_DOWN);
     }
 
-    //Uff, teraz linie pionowe
+    //Teraz linie pionowe
     for(i = 0; i < PITCH_Y_SIZE; i++)
     {
         myPitch.points[0][i].status = TAKEN;
@@ -92,7 +88,7 @@ void initPitch()
     for(j = startPos; j < startPos + GOAL_WIDTH; j++)
     {
         myPitch.points[j][0].status = myPitch.points[j][PITCH_Y_SIZE + 1].status = GOAL;
-        //Jeszcze trzeba wstawic wolne miejsca, bo teraz nie da sie dojsc do tej bramki :P
+        //Jeszcze trzeba wstawic wolne miejsca, bo teraz nie da sie dojsc do tej bramki
         /*
              |--|
         --------------
@@ -124,7 +120,6 @@ void drawPitch()
         {
             for(i = 0; i < PITCH_X_SIZE; i++)
             {
-                //Matko, jakie to glupie...
                 if(row == 0)
                 {
                     if(myPitch.points[i][j].neighbours[1])

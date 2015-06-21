@@ -1,4 +1,3 @@
-//Serwer zajmuje się przyjmowaniem połąceń - w razie nowego połączenia tworzy nowy wątek do obsługi graczy
 #define CLIENTS 100
 #define BACKLOG 10
 #define TIMEOUT 30
@@ -29,10 +28,13 @@ void check();
 void handleRequest(int i, struct serverCaller caller);
 void registerPeer(int i, struct serverCaller caller);
 void findPeer(int sock, struct serverCaller caller, int isSpecific);
+void sendResponseToClient(int sock, struct serverCaller caller, int status);
 void sendResponse(int first, int second, int status);
 int findIndex(struct serverCaller caller);
 void closePeer(int i);
+int stillPlaying(int i);
 void nextTurn(int i, struct serverCaller caller);
+void getScore(int i, struct serverCaller caller);
 
 int main(int argc, char** argv)
 {
@@ -47,6 +49,18 @@ int main(int argc, char** argv)
     for(i = 0; i < CLIENTS; i++)
     {
         info[i].sock = -1;
+    }
+
+    struct sigaction s;
+    sigset_t set;
+    sigemptyset(&set);
+    s.sa_flags = SA_RESTART;
+    s.sa_mask = set;
+    s.sa_handler = handlerS;
+    if(sigaction(SIGINT, &s, NULL) == -1)
+    {
+        perror("SIGACTION ERROR");
+        exit(1);
     }
     atexit(cleaner);
     setup();
@@ -142,7 +156,8 @@ void work()
                     {
                         printf("Len = 0 with %d, closing connection...\n", i);
                         closePeer(i);
-                        close(1);
+                        FD_CLR(i, &mainer);
+                        //close(i);
                     }
 
                 }
@@ -162,6 +177,8 @@ void handleRequest(int i, struct serverCaller caller)
         registerPeer(i, caller);
     else if(caller.request == TURN)
         nextTurn(i, caller);
+    else if(caller.request == GET_RECORD)
+        getScore(i, caller);
 }
 
 int findIndex(struct serverCaller caller)
@@ -185,18 +202,13 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
     int myIdx = findIndex(caller);
     for(j = 0; j < idx; j++)
     {
-        //printf("j = %d\nStatus: %d", j, info[j].status);
         if(info[j].sock != -1 && info[j].status == WAITING && (strcmp(info[j].id, info[myIdx].id) != 0))
         {
-            //printf("In if: info[j] = %s\n", info[j].id);
-            //printf("Specific: %d\ncaller.id: %s\n", isSpecific, info[myIdx].id);
             if(!isSpecific || (isSpecific && strcmp(info[j].id, caller.id2) == 0))
             {
-                //printf("In if2.\n");
                 info[j].status = PLAYING;
                 info[myIdx].status = PLAYING;
-                //printf("In if22.\n");
-                //No to jazda
+
                 strcpy(caller.id2, info[j].id);
                 caller.msg.idOneTurn = 1;
                 caller.msg.x = PITCH_X_SIZE / 2;
@@ -205,8 +217,7 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
                 caller.msg.sock2 = info[j].sock;
                 caller.response = ACCEPTED;
                 caller.msg.isEnded = 0;
-                //sendResponse(caller.peerSocket, info[j].status, ACCEPTED);
-                //printf("FOUND!\n");
+
                 if(send(sock, &caller, sizeof(struct serverCaller), 0) == -1)
                 {
                     perror("SEND RESPONSE FIND PEER ERROR");
@@ -220,7 +231,6 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
                 }
 
 
-                //Teraz do drugiego jeszcze :P
                 printf("NEW GAME STARTED: %s vs %s!\n", caller.id, caller.id2);
                 return;
 
@@ -228,7 +238,7 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
         }
     }
 
-    //Nie ma nikogo, smutne :/
+    //Nie ma nikogo
     //W takim razie czekamy na kolejnego, lub dajemy komunikat ze nie ma takiego specyficznego
     if(isSpecific)
     {
@@ -256,44 +266,92 @@ void registerPeer(int i, struct serverCaller caller)
     printf("Connection from %s...\n", caller.id);
     for(j = 0; j < idx; j++)
     {
-        ///TODO: Co jak mamy juz takiego klienta?
         if(info[j].sock != -1 && strcmp(info[j].id, caller.id) == 0)
         {
             printf("%s have been registered.\n", caller.id);
+            sendResponseToClient(i, caller, NOTACCEPTED);
             return;
         }
     }
 
-    ///TODO: Zrobic to ladniej
     printf("New client registered: %s\n", caller.id);
     strcpy(info[idx].id, caller.id);
     info[idx].sock = i;
     info[idx].status = BEING;
     idx++;
-
+    sendResponseToClient(i, caller, ACCEPTED);
 }
 
 void nextTurn(int i, struct serverCaller caller)
 {
     printf("Next turn. Id1 = %s, Id2 = %s\n", caller.id, caller.id2);
     int iAmFirst = (i == caller.msg.sock1) ? 1 : 0;
-        printf("iAmFirst =  %d\n", iAmFirst);
+    //Co jesli nasz klient sie odlaczyl?
+
     if(iAmFirst)
     {
-        if(send(caller.msg.sock2, &caller, sizeof(struct serverCaller), 0) == -1)
+        if(!stillPlaying(i))
         {
-            perror("SEND ERROR NEXT TURN");
-            exit(1);
+            caller.msg.isEnded = 1;
+            caller.msg.status = PLAYER_TWO_SURRENDING;
+            if(send(caller.msg.sock1, &caller, sizeof(struct serverCaller), 0) == -1)
+            {
+                perror("SEND ERROR NEXT TURN");
+                exit(1);
+            }
+        }
+        else
+        {
+            if(send(caller.msg.sock2, &caller, sizeof(struct serverCaller), 0) == -1)
+            {
+                perror("SEND ERROR NEXT TURN");
+                exit(1);
+            }
         }
     }
     else
     {
-        if(send(caller.msg.sock1, &caller, sizeof(struct serverCaller), 0) == -1)
+        if(!stillPlaying(i))
         {
-            perror("SEND ERROR NEXT TURN");
-            exit(1);
+            caller.msg.isEnded = 1;
+            caller.msg.status = PLAYER_ONE_SURRENDING;
+            if(send(caller.msg.sock2, &caller, sizeof(struct serverCaller), 0) == -1)
+            {
+                perror("SEND ERROR NEXT TURN");
+                exit(1);
+            }
+        }
+        else
+        {
+            if(send(caller.msg.sock1, &caller, sizeof(struct serverCaller), 0) == -1)
+            {
+                perror("SEND ERROR NEXT TURN");
+                exit(1);
+            }
         }
 
+    }
+
+    FILE* fp;
+    fp = fopen(strcat(caller.id, caller.id2), "a");
+    if(fp == NULL)
+    {
+        perror("FOPEN ERROR");
+        exit(1);
+    }
+
+    fprintf(fp, "%d %d\n", caller.msg.x, caller.msg.y);
+    if(fclose(fp) == -1)
+    {
+        perror("FCLOSE ERROR");
+        exit(1);
+    }
+
+    if(caller.msg.isEnded)
+    {
+        //Koniec gry, mozemy jeszcze raz zagrac
+        closeGame(caller.msg.sock1);
+        closeGame(caller.msg.sock2);
     }
 }
 
@@ -312,12 +370,100 @@ void closePeer(int i)
 
 }
 
+void sendResponseToClient(int sock, struct serverCaller caller, int status)
+{
+    caller.response = status;
+    if(send(sock, &caller, sizeof(struct serverCaller), 0) == -1)
+    {
+        perror("SEND RESPONSE TO CLIENT ERROR.");
+        exit(1);
+    }
+}
+
+void handlerS(int sig)
+{
+    exit(0);
+}
+
 void cleaner()
 {
+    //Zamykamy wszystkie polaczenia
+    int j;
+    for(j = 0; j < idx; j++)
+    {
+        close(info[j].sock);
+    }
+
     if(close(mySocket) == -1)
     {
         perror("CLOSE NET SOCKET ERROR.");
         exit(1);
     }
 
+}
+
+void closeGame(int i)
+{
+    int j;
+    for(j = 0; j < idx; j++)
+    {
+        if(info[j].sock == i)
+        {
+            info[j].status = BEING;
+            break;
+        }
+    }
+
+}
+
+
+int stillPlaying(int i)
+{
+    int j;
+    for(j = 0; j < idx; j++)
+    {
+        if(info[j].sock == i && info[j].status != PLAYING)
+            return 0;
+    }
+    return 1;
+}
+
+void getScore(int i, struct serverCaller caller)
+{
+    FILE* fp;
+    int fail = 0;
+    char buf2[30];
+    strcpy(buf2, caller.id);
+    fp = fopen(strcat(buf2, caller.id2), "r");
+    if(fp == NULL)
+    {
+        fp = fopen(strcat(caller.id2, caller.id), "r");
+        if(fp == NULL)
+            fail = 1;
+    }
+
+    if(fail)
+    {
+        if(send(i, "", 1, 0) == -1)
+        {
+            perror("SEND ERROR");
+            exit(1);
+        }
+        return;
+    }
+
+    char buf[320 * 6];
+    fread(buf, 1, 320 * 6, fp);
+    printf("%s\n", buf);
+    if(send(i, buf, 320 * 6, 0) == -1)
+    {
+        perror("SEND ERROR");
+        exit(1);
+    }
+
+    if(fclose(fp) == -1)
+    {
+        perror("FCLOSE ERROR");
+        exit(1);
+    }
 }

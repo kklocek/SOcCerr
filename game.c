@@ -7,15 +7,15 @@ void playGame(struct serverCaller call)
 {
     //Cała logika gry
     initPitch();
+    call.msg.isEnded = 0;
     currX = call.msg.x;
     currY = call.msg.y;
     printf("Pitch initialized!\n");
-    //drawPitch();
+    drawPitch();
     do
     {
         while((iAmFirst && !call.msg.idOneTurn) || (!iAmFirst && call.msg.idOneTurn))
             call = receive();
-        ///TODO: Angielski sprawdzic
         drawPitch();
         if(iAmFirst)
             printf("Remember that you need to score a goal on upper field!\n");
@@ -28,8 +28,7 @@ void playGame(struct serverCaller call)
         }
 
     } while(!call.msg.isEnded);
-    ///TODO: Ładne zakończenie :P
-    ///TODO: Brakuje opcji remisu i poddania się!
+
     clear();
     switch(call.msg.status)
     {
@@ -39,11 +38,18 @@ void playGame(struct serverCaller call)
         case PLAYER_TWO_WINS:
             printf("\nPlayer %s won!\n", call.id2);
             break;
+        case PLAYER_ONE_SURRENDING:
+            printf("\nPlayer %s surrending!\n", call.id);
+            break;
+        case PLAYER_TWO_SURRENDING:
+            printf("\nPlayer %s surrending!\n", call.id2);
+            break;
         default:
             printf("Huh...\n");
 
     }
     printf("\nIt was a good game, thank you :).\n");
+    iAmFirst = -1;
 }
 
 
@@ -53,18 +59,28 @@ void playGame(struct serverCaller call)
 */
 struct serverCaller move(struct serverCaller caller)
 {
-
     while(1)
     {
-        short c = 0;
-        while(c > 8 || c < 1)
+        short c = -1;
+        while(c > 8 || c < 0)
         {
-            printf("Your choice (1 - 8): ");
+            printf("Your choice (1 - 8), or 0 if you want to exit game (you will lost): ");
             scanf("%hd", &c);
-            if(c > 8 || c < 1)
+            if(c > 8 || c < 0)
                 printf("Wrong option, try again!\n");
         }
 
+        if(c == 0)
+        {
+            if(iAmFirst)
+                caller.msg.status = PLAYER_ONE_SURRENDING;
+            else
+                caller.msg.status = PLAYER_TWO_SURRENDING;
+            caller.msg.isEnded = 1;
+            caller.request = TURN;
+            caller.msg.idOneTurn = !caller.msg.idOneTurn;
+            return caller;
+        }
         //Tablica opisujaca nam jak sie zmienia x i y - indeksem bedzie nasz wybor
         c--; //Dla latwej indeksacji
         int choiceX[] = {-1, -1, 0, 1, 1, 1, 0, -1};

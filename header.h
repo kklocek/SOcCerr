@@ -23,23 +23,19 @@
 #include <signal.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include <fcntl.h>
 
 #include "header.h"
 extern char id[30];
 extern char ip[30];
 extern int port;
-///TODO: POMYSLEC NAD TRYBEM VIEWERA
-
-pthread_t ioThread;
-pthread_t parent;
-pid_t parentPid;
 extern int mySocket; //-1 by sprawdzic czy sie polaczylismy gdzies po prostu
 extern int iAmFirst; //Czy jestem graczem nr 1
 extern struct sockaddr_in remoteAddr;
 extern struct sockaddr_in myAddr;
 extern struct pitch myPitch;
-
+extern struct serverCaller call;
 extern int currX, currY;
 
 
@@ -68,10 +64,9 @@ enum serverRequest
     REGISTER,
     FIND_SPECIFIC,
     FIND,
-    FOUNDED, //?
     HIGH_SCORE,
+    GET_RECORD,
     TURN
-
 };
 
 enum borderStatus
@@ -85,7 +80,7 @@ enum borderStatus
 enum pointStatus
 {
     NORMAL,
-    TAKEN, //Znaczy sie mozna sie odbic od niego
+    TAKEN, //Znaczy E mozna sie odbic od niego
     GOAL
 };
 
@@ -111,14 +106,6 @@ struct serverCaller
     enum serverRequest request;
     enum serverResponse response;
     struct message msg; //Niechserwer decyduje kto ma grac pierwszy itd.
-
-};
-
-struct clientCaller
-{
-    enum serverResponse response;
-    char id[30];
-    char id2[30];
 
 };
 
@@ -167,4 +154,7 @@ extern void fill(int i, int j, int val, int status);
 extern void estabilishNetConnection();
 extern void cleaner();
 extern void printPointStatus(struct point p);
+extern void handler(int sig);
+extern void handlerS(int sig);
+extern void closeGame(int i);
 #endif // HEADER_H_INCLUDED

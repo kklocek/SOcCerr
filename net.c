@@ -1,13 +1,10 @@
 #include "header.h"
 
-//extern int currX, currY, iAmFirst, mySocket;
-//extern char ip[30];
 /**
     estabilishNetConnection - nawiazanie polaczenia
 */
 void estabilishNetConnection()
 {
-    ///TODO: Obsluga zlych parametrow
     printf("Connecting to %s:%d...\n", ip, port);
     remoteAddr.sin_family = AF_INET;
     remoteAddr.sin_port = htons(port);
@@ -23,12 +20,16 @@ void estabilishNetConnection()
 
     if(connect(mySocket, (struct sockaddr*)&remoteAddr, sizeof(struct sockaddr_in)) == -1)
     {
+        if(errno == ECONNREFUSED)
+        {
+            printf("Wrong server address, returning to main menu...\n");
+            mySocket = -1;
+            menu();
+        }
         perror("CONNECT NET ERROR");
         exit(1);
     }
     printf("CONNECTED!\n");
-
-
 }
 
 
@@ -37,8 +38,6 @@ void estabilishNetConnection()
 */
 void findPlayer(int type)
 {
-    struct serverCaller call;
-    //struct clientCaller call2;
     strcpy(call.id, id);
     call.request = FIND;
     if(type)
@@ -49,7 +48,6 @@ void findPlayer(int type)
         strcpy(call.id2, id2);
         call.request = FIND_SPECIFIC;
     }
-
 
     ///TODO: Timed response!
 
@@ -69,20 +67,17 @@ void findPlayer(int type)
     if(call.response == ACCEPTED)
     {
         //jest dobrze, mamy z kim grać
-        //GRAMY!
-        //printf("Id1 = %s, id2 = %s, myId = %s.\n", call.id, call.id2, id);
         if(strcmp(id, call.id) == 0)
             iAmFirst = 1;
         else
             iAmFirst = 0;
-        //printf("iAmFirst: %d\n", iAmFirst);
 
         if(iAmFirst)
             printf("Your rival: %s. You are first. Starting game...\n", call.id2);
         else
             printf("Your rival: %s. You are second. Starting game...\n", call.id);
-
-        playGame(call); //W call2 mamy zapisane id nasze i 'tego drugiego' :P
+        fflush(stdin);
+        playGame(call);
         ///TODO: Zrobić coś jeżeli nie chcę grać z tym gościem?
     }
     else if(type)
@@ -105,7 +100,7 @@ void findPlayer(int type)
                 menu();
                 break;
             default:
-                printf("Wrong option, back to menu!\n"); ///TODO: Zrobic to lepiej?
+                printf("Wrong option, back to menu!\n");
                 menu();
         }
     }
@@ -161,6 +156,22 @@ void registerName()
     {
         perror("SEND REGISTER ERROR.");
         exit(1);
+    }
+
+    if(recv(mySocket, &call, sizeof(struct serverCaller), 0) == -1)
+    {
+        perror("SEND REGISTER ERROR.");
+        exit(1);
+    }
+
+    if(call.response == ACCEPTED)
+    {
+        printf("Succesfully registered on a server!\n");
+    }
+    else
+    {
+        printf("Couldn't register - probably you have to change your id. Returning to main menu...\n");
+        menu();
     }
 
 }

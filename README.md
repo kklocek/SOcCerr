@@ -12,3 +12,13 @@ USAGE:
 3. ./server <port> - to run a server on the specific port
 4. ./client - to run a client
 
+HOW TO PLAY:
+ 2 3 4 
+  \|/ 
+1 -o- 5
+  /|\ 
+ 8 7 6
+
+That's the table of moves - input digit in game to move in appropriate direction.
+
+Next part of this doc: in the future, maybe.
