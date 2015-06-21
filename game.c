@@ -1,7 +1,5 @@
 #include "header.h"
 
-//extern int currX, currY, iAmFirst, mySocket;
-//extern struct pitch myPitch;
 /**
     playGame - glowna petla gry.
 */
@@ -17,7 +15,6 @@ void playGame(struct serverCaller call)
     {
         while((iAmFirst && !call.msg.idOneTurn) || (!iAmFirst && call.msg.idOneTurn))
             call = receive();
-        //printf("Received. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
         ///TODO: Angielski sprawdzic
         drawPitch();
         if(iAmFirst)
@@ -28,7 +25,6 @@ void playGame(struct serverCaller call)
         {
             call = move(call);
             sender(call);
-            //printf("Sended. X = %d, Y = %d.\n", call.msg.x, call.msg.y);
         }
 
     } while(!call.msg.isEnded);

@@ -1,8 +1,8 @@
 #ifndef HEADER_H_INCLUDED
 #define HEADER_H_INCLUDED
 #define clear() printf("\033[H\033[J")
-#define PITCH_X_SIZE 8
-#define PITCH_Y_SIZE 10
+#define PITCH_X_SIZE 9
+#define PITCH_Y_SIZE 11
 #define GOAL_WIDTH 2
 #include <stdio.h>
 /**

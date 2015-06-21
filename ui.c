@@ -81,12 +81,12 @@ void initPitch()
     //Teraz linia srodkowa
     for(j = 0; j < PITCH_X_SIZE; j++)
     {
-        myPitch.points[j][PITCH_Y_SIZE / 2 - 1].status = TAKEN;
-        myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE / 2 - 1].neighbours[4] = 1;
+        myPitch.points[j][PITCH_Y_SIZE / 2 + 1].status = TAKEN;
+        myPitch.points[j][PITCH_Y_SIZE / 2 + 1].neighbours[0] = myPitch.points[j][PITCH_Y_SIZE / 2 + 1].neighbours[4] = 1;
     }
 
     //Pileczka
-    myPitch.points[PITCH_X_SIZE / 2][PITCH_Y_SIZE / 2 - 1].isItBall = 1;
+    myPitch.points[PITCH_X_SIZE / 2][PITCH_Y_SIZE / 2 + 1].isItBall = 1;
     //No i kochane bramki <3
     int startPos = PITCH_X_SIZE / 2 - GOAL_WIDTH / 2;
     for(j = startPos; j < startPos + GOAL_WIDTH; j++)
