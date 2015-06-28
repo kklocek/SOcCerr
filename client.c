@@ -191,7 +191,7 @@ void manual()
 {
     clear();
     FILE* fd;
-    fd = fopen("README.md", "r");
+    fd = fopen("README.txt", "r");
     if(fd == NULL)
     {
         perror("FOPEN ERROR IN MANUAL");
@@ -219,7 +219,8 @@ void manual()
 */
 void cleaner()
 {
-
+    if(mySocket == -1)
+	return;
     if(close(mySocket) == -1)
     {
     perror("CLOSE NET SOCKET ERROR.");

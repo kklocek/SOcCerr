@@ -5,11 +5,6 @@
 #define PITCH_Y_SIZE 11
 #define GOAL_WIDTH 2
 #include <stdio.h>
-/**
-  TODO: Zmienic sterowanie - popatrz na numpad!
-
-*/
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -26,7 +21,6 @@
 #include <signal.h>
 #include <fcntl.h>
 
-#include "header.h"
 extern char id[30];
 extern char ip[30];
 extern int port;

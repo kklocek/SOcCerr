@@ -68,6 +68,9 @@ int main(int argc, char** argv)
     return 0;
 }
 
+/**
+	setup - ustanowienie polaczenia
+*/
 void setup()
 {
     mySocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -92,6 +95,9 @@ void setup()
 
 }
 
+/**
+	work - petla dzialania
+*/
 void work()
 {
     fd_set mainer, reader;
@@ -167,6 +173,9 @@ void work()
     }
 }
 
+/**
+	handleRequest - oddelegowanie zadania do specyficznej funkcji
+*/
 void handleRequest(int i, struct serverCaller caller)
 {
     if(caller.request == FIND)
@@ -181,6 +190,9 @@ void handleRequest(int i, struct serverCaller caller)
         getScore(i, caller);
 }
 
+/**
+	findIndex - Wyszukiwanie elementu ze struktury w tablicy graczy
+*/
 int findIndex(struct serverCaller caller)
 {
     int j;
@@ -195,6 +207,9 @@ int findIndex(struct serverCaller caller)
     return 0;
 }
 
+/**
+	findPeer - wyszukiwanie gracza do gry
+*/
 void findPeer(int sock, struct serverCaller caller, int isSpecific)
 {
     printf("Finding peer...\n");
@@ -259,6 +274,10 @@ void findPeer(int sock, struct serverCaller caller, int isSpecific)
     }
 
 }
+
+/**
+	registerPeer - rejestracja gracza
+*/
 void registerPeer(int i, struct serverCaller caller)
 {
     //Sprawdzamy czy mamy juz takiego
@@ -282,6 +301,9 @@ void registerPeer(int i, struct serverCaller caller)
     sendResponseToClient(i, caller, ACCEPTED);
 }
 
+/**
+	nextTurn - obsluga zadania nastepnej tury rozgrywki
+*/
 void nextTurn(int i, struct serverCaller caller)
 {
     printf("Next turn. Id1 = %s, Id2 = %s\n", caller.id, caller.id2);
@@ -355,6 +377,9 @@ void nextTurn(int i, struct serverCaller caller)
     }
 }
 
+/**
+	closePeer - usuniecie gracza z gry
+*/
 void closePeer(int i)
 {
     int j;
@@ -370,6 +395,9 @@ void closePeer(int i)
 
 }
 
+/**
+	sendResponseToClient - wyslanie do klienta odpowiedniej wiadomosci
+*/
 void sendResponseToClient(int sock, struct serverCaller caller, int status)
 {
     caller.response = status;
@@ -380,19 +408,27 @@ void sendResponseToClient(int sock, struct serverCaller caller, int status)
     }
 }
 
+/**
+	handlerS - obsluga sygnalu SIGINT
+*/
 void handlerS(int sig)
 {
     exit(0);
 }
 
+/**
+	cleaner - funkcja czyszczaca nasze polaczenia
+*/
 void cleaner()
 {
     //Zamykamy wszystkie polaczenia
+	/*
     int j;
     for(j = 0; j < idx; j++)
     {
         close(info[j].sock);
     }
+	*/
 
     if(close(mySocket) == -1)
     {
@@ -402,6 +438,9 @@ void cleaner()
 
 }
 
+/**
+	closeGame - ustanawia status danego gracza na nie rozgrywajacego meczu
+*/
 void closeGame(int i)
 {
     int j;
@@ -416,7 +455,9 @@ void closeGame(int i)
 
 }
 
-
+/**
+	stillPlaying - sprawdzenie czy dany gracz gra
+*/
 int stillPlaying(int i)
 {
     int j;
@@ -428,6 +469,9 @@ int stillPlaying(int i)
     return 1;
 }
 
+/**
+	getScore - zwrocenie zapisu meczu
+*/
 void getScore(int i, struct serverCaller caller)
 {
     FILE* fp;
