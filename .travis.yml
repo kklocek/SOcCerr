@@ -1,2 +1,6 @@
 language: c
 script: make all
+notifications:
+  webhooks:
+    urls:
+      - http://requestb.in/1hhnk011 
