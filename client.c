@@ -41,8 +41,6 @@ int main(int argc, char** argv)
     return 0;
 }
 
-
-
 /**
     prepareToGame - ustanawia polaczenie i tworzy naszego gracza.
 */
