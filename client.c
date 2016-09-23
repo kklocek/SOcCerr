@@ -21,7 +21,6 @@ int main(int argc, char** argv)
     struct sigaction s;
     sigset_t set;
     sigemptyset(&set);
-    //sigaddset(&set, SIGSEGV);
     s.sa_flags = SA_RESTART;
     s.sa_mask = set;
     s.sa_handler = handler;
@@ -41,8 +40,6 @@ int main(int argc, char** argv)
     menu();
     return 0;
 }
-
-
 
 /**
     prepareToGame - ustanawia polaczenie i tworzy naszego gracza.
