@@ -3,4 +3,4 @@ script: make all
 notifications:
   webhooks:
     urls:
-      - http://requestb.in/1hhnk011 
+      - http://d2acfa7d.ngrok.io/api/travis_ci/events 
