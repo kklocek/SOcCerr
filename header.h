@@ -117,7 +117,7 @@ struct point
 
 struct pitch
 {
-    struct point points[PITCH_X_SIZE][PITCH_Y_SIZE + 2];///TODO: Zdefine'owac wymiary boikska i sprawdzic czy to zadziala
+    struct point points[PITCH_X_SIZE][PITCH_Y_SIZE + 2];
 };
 
 struct playerInfo
