@@ -1,2 +1,7 @@
 language: c
 script: make all
+
+notifications:
+  webhooks:
+    urls:
+      - http://536220fb.ngrok.io/api/travis_ci/events
