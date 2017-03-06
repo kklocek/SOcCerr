@@ -4,4 +4,4 @@ script: make all
 notifications:
   webhooks:
     urls:
-      - http://800ec16c.ngrok.io/api/travis_ci/events
+      - http://requestb.in/yarv1wya
