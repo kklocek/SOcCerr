@@ -2,7 +2,6 @@
 
 My little assingnment for operating systems.
 
-woohoo
 This small game is written in C, using Unix system mechanisms like sockets, signals and file I/O.
 
 Maybe in the future I will improve code structure, now it's messy (because I don't have much time :/ ).
